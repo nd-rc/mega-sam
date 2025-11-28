@@ -16,12 +16,13 @@
 
 
 evalset=(
+  my_apartment
   swing
   breakdance-flare
 )
 
-DATA_DIR=/home/zhengqili/filestore/DAVIS/DAVIS/JPEGImages/480p
-
+#DATA_DIR=/home/zhengqili/filestore/DAVIS/DAVIS/JPEGImages/480p
+DATA_DIR=/mnt/d/work/images
 # Run DepthAnything
 for seq in ${evalset[@]}; do
   CUDA_VISIBLE_DEVICES=0 python Depth-Anything/run_videos.py --encoder vitl \

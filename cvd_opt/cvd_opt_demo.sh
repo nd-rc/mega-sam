@@ -20,8 +20,8 @@ evalset=(
   breakdance-flare
 )
 
-DATA_PATH=/home/zhengqili/filestore/DAVIS/DAVIS/JPEGImages/480p
-
+#DATA_PATH=/home/zhengqili/filestore/DAVIS/DAVIS/JPEGImages/480p
+DATA_PATH="/mnt/d/work/images/my_apartment"
 
 # Run Raft Optical Flows
 for seq in ${evalset[@]}; do
