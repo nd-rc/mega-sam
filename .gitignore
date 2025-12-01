@@ -1,0 +1,4 @@
+Depth-Anything/depth_anything/util/__pycache__/*
+Depth-Anything/depth_anything/__pycache__/*
+Depth-Anything/checkpoints/depth_anything_vitl14.pth
+xformers-0.0.22.post7-py310_cu11.8.0_pyt2.0.1.tar.bz2
