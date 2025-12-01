@@ -188,6 +188,7 @@ if __name__ == "__main__":
       "--mono_depth_path", default="Depth-Anything/video_visualization"
   )
   parser.add_argument("--metric_depth_path", default="UniDepth/outputs ")
+  parser.add_argument("--estimated_fov", type=float, default=73.0, help="Estimated horizontal FOV in degrees")
   args = parser.parse_args()
 
   print("Running evaluation on {}".format(args.datapath))
@@ -216,7 +217,7 @@ if __name__ == "__main__":
   img_0 = cv2.imread(image_list[0])
   H, W = img_0.shape[:2]
 
-  estimated_fov = 73.0 # iPhone 14 Pro (24mm equivalent)
+  estimated_fov = args.estimated_fov
   print(f"************** FORCED FOV: {estimated_fov}")
   
   ff = W / (2 * np.tan(np.radians(estimated_fov / 2.0)))
