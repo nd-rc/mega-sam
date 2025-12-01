@@ -1,34 +1,39 @@
 name: mega_sam
 channels:
+  - pytorch-nightly
+  - nvidia/label/cuda-12.6.0  # Канал с компиляторами
+  - conda-forge
   - defaults
 dependencies:
   - python=3.10
   - pip
+  - git
+  - ninja  # Ускоритель сборки
+  
+  # === CUDA и PyTorch (Nightly для RTX 5070) ===
+  - pytorch
+  - torchvision
+  - torchaudio
+  - pytorch-cuda=12.8
+  - cuda-toolkit  # Компилятор NVCC (критично!)
   - pip:
-    # 1. Указываем, где искать драйверы для RTX 5070 (Nightly сборка)
-    - --index-url https://download.pytorch.org/whl/nightly/cu128
-    - --extra-index-url https://pypi.org/simple
-    
-    # 2. Ставим свежий PyTorch (pre-release)
-    - --pre torch
-    - --pre torchvision
-    - --pre torchaudio
-    
-    # 3. Остальные библиотеки (берутся из обычного интернета)
-    - opencv-python-headless
-    - tqdm
-    - imageio
-    - imageio-ffmpeg
-    - einops
+    # База
+    - numpy<2.0  # ВАЖНО: Фикс для pycolmap/gsplat
     - scipy
     - matplotlib
-    - wandb
-    - timm
-    - huggingface-hub
-    - ninja
-    - numpy<2.0 # Фиксируем версию, чтобы не сломать совместимость
+    - tqdm
+    - opencv-python
+    - imageio
+    - imageio-ffmpeg
     
-    # ВРЕМЕННО ОТКЛЮЧЕНО:
-    # - xformers 
-    # (UniDepth не будет работать, пока xformers не обновят под CUDA 12.8)
-    # (torch-scatter тоже часто ломается на Nightly, лучше пока без него)
+    # Для Gsplat / Nerfstudio
+    - pyyaml
+    - viser
+    - lpips
+    - tyro
+    - tensorboard
+    - jaxtyping
+    - rich
+    
+    # NOTE: torch-scatter и сам mega-sam устанавливаются отдельно,
+    # так как требуют флага --no-build-isolation, который YAML плохо поддерживает.
