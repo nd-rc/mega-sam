@@ -68,6 +68,95 @@ def write_images_binary(path, images, poses):
             # NUM_POINTS2D (u64) = 0 (мы не знаем 2D точек)
             f.write(struct.pack("<Q", 0))
 
+def write_points3D_from_depth(path, images, depths, poses, intrinsics):
+    """Создает points3D.bin используя глубину из Droid-SLAM"""
+    print("Generating Point Cloud from Depth Maps...")
+    
+    points = []
+    colors = []
+    
+    # Берем каждый N-й кадр и subsample пикселей, чтобы не было слишком много точек
+    frame_step = 5
+    pixel_step = 8
+    
+    fx = intrinsics[0, 0]
+    fy = intrinsics[1, 1]
+    cx = intrinsics[0, 2]
+    cy = intrinsics[1, 2]
+    
+    H, W = depths[0].shape
+    
+    # Grid of coordinates
+    v, u = np.mgrid[0:H:pixel_step, 0:W:pixel_step]
+    
+    for i in tqdm(range(0, len(images), frame_step), desc="Projecting points"):
+        depth_map = depths[i]
+        color_map = images[i]
+        pose = poses[i] # c2w
+        
+        # Subsample
+        d = depth_map[::pixel_step, ::pixel_step]
+        c = color_map[::pixel_step, ::pixel_step]
+        
+        # Filter invalid depth
+        mask = (d > 0.1) & (d < 100.0)
+        
+        if not np.any(mask):
+            continue
+            
+        d = d[mask]
+        c = c[mask]
+        uu = u[mask]
+        vv = v[mask]
+        
+        # Back-project to Camera Space
+        # Z = d
+        # X = (u - cx) * Z / fx
+        # Y = (v - cy) * Z / fy
+        
+        Z = d
+        X = (uu - cx) * Z / fx
+        Y = (vv - cy) * Z / fy
+        
+        # Stack to (N, 3)
+        P_cam = np.stack([X, Y, Z], axis=-1)
+        
+        # Transform to World Space: P_world = R * P_cam + T
+        R_c2w = pose[:3, :3]
+        T_c2w = pose[:3, 3]
+        
+        P_world = (R_c2w @ P_cam.T).T + T_c2w
+        
+        points.append(P_world)
+        colors.append(c)
+    
+    if len(points) == 0:
+        print("⚠️ Warning: No valid points generated! Fallback to random.")
+        write_points3D_binary(path)
+        return
+
+    all_points = np.concatenate(points, axis=0)
+    all_colors = np.concatenate(colors, axis=0)
+    
+    num_points = len(all_points)
+    print(f"Saving {num_points} points to {path}...")
+
+    with open(path, "wb") as f:
+        # NUM_POINTS (uint64)
+        f.write(struct.pack("<Q", num_points))
+        
+        for i in tqdm(range(num_points), desc="Writing points3D.bin"):
+            point_id = i + 1
+            xyz = all_points[i]
+            rgb = all_colors[i]
+            error = 0.01 # Fake error
+            
+            # ID(u64), X(d), Y(d), Z(d), R(u8), G(u8), B(u8), ERR(d)
+            f.write(struct.pack("<Q3d3Bd", point_id, xyz[0], xyz[1], xyz[2], rgb[0], rgb[1], rgb[2], error))
+            
+            # TRACK_LENGTH(u64) = 0
+            f.write(struct.pack("<Q", 0))
+
 def write_points3D_binary(path):
     """Создает заглушку points3D.bin (gsplat требует этот файл)"""
     # Создаем облако случайных точек для инициализации
@@ -101,6 +190,12 @@ def process_data(npz_path, output_path):
     images = data["images"]
     poses = data["cam_c2w"] if "cam_c2w" in data else data["poses"]
     intrinsics = data["intrinsic"]
+    
+    # Try to load depths
+    depths = None
+    if "depths" in data:
+        depths = data["depths"]
+        
     H, W, _ = images[0].shape
 
     print(f"Processing {len(images)} frames...")
@@ -121,7 +216,12 @@ def process_data(npz_path, output_path):
     print("Writing binary COLMAP files...")
     write_cameras_binary(os.path.join(sparse_path, "cameras.bin"), W, H, intrinsics)
     write_images_binary(os.path.join(sparse_path, "images.bin"), images, poses)
-    write_points3D_binary(os.path.join(sparse_path, "points3D.bin"))
+    
+    if depths is not None:
+        write_points3D_from_depth(os.path.join(sparse_path, "points3D.bin"), images, depths, poses, intrinsics)
+    else:
+        print("⚠️ No depths found in npz, using random points.")
+        write_points3D_binary(os.path.join(sparse_path, "points3D.bin"))
 
     print("✅ Conversion DONE. Binary files created.")
 
